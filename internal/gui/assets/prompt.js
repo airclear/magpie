@@ -130,7 +130,7 @@
       const open = document.createElement("button");
       open.type = "button";
       open.textContent = t("Open System Settings");
-      open.onclick = () => api("prompts/accessibility").catch((e) => showNote(e.message));
+      open.onclick = () => api("prompts/accessibility", {}).catch((e) => showNote(e.message));
       note.append(open);
     }
   }
@@ -186,7 +186,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      api("prompts/hide").catch(() => {});
+      api("prompts/hide", {}).catch(() => {});
     }
   });
   window.addEventListener("focus", load);

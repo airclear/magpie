@@ -25,14 +25,17 @@ function pickerServer(lang, events, insertResult = { inserted: true }) {
     if (url.pathname === "/boot.js") return route.fulfill({ contentType: "text/javascript", body: `window.bootPrefs = {lang:${JSON.stringify(lang)},theme:"light",web:false};` });
     if (url.pathname === "/api/prompts") return route.fulfill({ json: { prompts, shortcut: "CmdOrCtrl+Shift+Space", insertAvailable: true } });
     if (url.pathname === "/api/prompts/insert") {
+      assert.equal(route.request().method(), "POST");
       events.insert.push(route.request().postDataJSON());
       return route.fulfill({ json: insertResult });
     }
     if (url.pathname === "/api/prompts/hide") {
+      assert.equal(route.request().method(), "POST");
       events.hide++;
       return route.fulfill({ json: { ok: true } });
     }
     if (url.pathname === "/api/prompts/accessibility") {
+      assert.equal(route.request().method(), "POST");
       events.accessibility++;
       return route.fulfill({ json: { ok: true } });
     }
