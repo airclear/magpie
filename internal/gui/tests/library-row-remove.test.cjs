@@ -140,6 +140,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         assert.equal(await rm.getAttribute("title"), w("Remove"));
 
         // one turned off for every agent: no agent has it; Cancel posts nothing
+        await srow("exa-2").hover();
         await press(page, rm);
         await sheet.waitFor();
         await settled(page);
@@ -157,6 +158,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         assert.equal(await v.locator(".lib-server").count(), 2);
 
         // one given to agents, placed in a project, signed in: each said
+        await srow("exa").hover();
         await press(page, srow("exa").locator(".lib-rowacts .lib-icon.danger"));
         await sheet.waitFor();
         await settled(page);
@@ -172,6 +174,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         assert.deepEqual(posts, [], "Cancel posted");
 
         // Remove: exa-2 alone goes
+        await srow("exa-2").hover();
         await press(page, srow("exa-2").locator(".lib-rowacts .lib-icon.danger"));
         await sheet.waitFor();
         await settled(page);
@@ -189,6 +192,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         await page.locator('button[data-view="library"]').click();
         const hrow = (name) => v.locator(".lib-hook").filter({ has: page.locator(".name", { hasText: new RegExp("^" + name + "$") }) });
         await hrow("fmt").waitFor();
+        await hrow("fmt").hover();
         await press(page, hrow("fmt").locator(".lib-rowacts .lib-icon.danger"));
         await sheet.waitFor();
         await settled(page);

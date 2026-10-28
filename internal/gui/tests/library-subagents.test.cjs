@@ -162,9 +162,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         const row = (name) => v.locator(".lib-subagent").filter({ has: page.locator(".name", { hasText: new RegExp("^" + name + "$") }) });
         const agentsOf = (name) => state.subagents.find((s) => s.name === name)?.agents;
 
-        // the tab, with its count, between Hooks and RTK
+        // the tab, with its count, between Prompts and RTK
         const tabs = (await v.locator(".lib-tabs button").allTextContents()).map((x) => x.trim());
-        assert.deepEqual(tabs.slice(3, 6), [w("Hooks"), w("Subagents") + " · 1", "RTK"]);
+        assert.deepEqual(tabs.slice(3, 7), [w("Hooks"), w("Prompts"), w("Subagents") + " · 1", "RTK"]);
         // the row: what it is for, and what it binds
         assert.equal((await row("reviewer").locator(".lib-subagentdesc").textContent()).trim(), LONG);
         assert.equal((await row("reviewer").locator(".lib-subagentuses").textContent()).trim(), w("Skills: {names}", { names: "tdd" }) + " · " + w("MCP servers: {names}", { names: "github" }));
@@ -191,8 +191,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         await page.waitForTimeout(200);
         assert.deepEqual(posts.shift(), { what: "subagents/agents", body: { name: "reviewer", agents: ["claude", "codex", "cursor"] } });
         assert.deepEqual(agentsOf("reviewer"), ["claude", "codex", "cursor"]);
-        await press(page, v.locator(".lib-tabs button").nth(3));
-        await press(page, v.locator(".lib-tabs button").nth(4));
+        await press(page, v.locator(".lib-tabs button").filter({ hasText: w("Hooks") }));
+        await press(page, v.locator(".lib-tabs button").filter({ hasText: w("Subagents") }));
         await v.locator(".lib-subagents-cursor").filter({ hasText: w("The Cursor app has these subagents; its cursor-agent command reads only a project's own .cursor/agents.") }).waitFor();
         await v.locator(".lib-subagents-noskills").filter({ hasText: w("{agents} can't bind skills to a subagent: theirs gets its prompt, and every skill the agent has.", { agents: "Codex, Cursor" }) }).waitFor();
 
