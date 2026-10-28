@@ -52,6 +52,8 @@ type Settings struct {
 	ReduceMotion bool   `json:"reduceMotion,omitempty"`
 	Lang         string `json:"lang,omitempty"` // system | en | zh
 	Tray         string `json:"tray,omitempty"` // what clicking the tray icon opens: panel | window
+	// PromptShortcut opens the prompt picker from any application.
+	PromptShortcut string `json:"promptShortcut,omitempty"`
 	// SessionTerminal is the Mac app that opens a resumed session, by bundle
 	// id. "" and "system" follow the .command file association. This
 	// computer's own (KeepOwn): another Mac may not have that app.
@@ -1780,9 +1782,15 @@ func save(s Settings, recording bool) error {
 	return nil
 }
 
+// DefaultPromptShortcut avoids macOS's Spotlight shortcut.
+const DefaultPromptShortcut = "CmdOrCtrl+Shift+Space"
+
 func (s Settings) normal() Settings {
 	if s.Theme == "" {
 		s.Theme = "system"
+	}
+	if s.PromptShortcut == "" {
+		s.PromptShortcut = DefaultPromptShortcut
 	}
 	if s.Lang == "" {
 		s.Lang = "system"

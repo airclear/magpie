@@ -33,7 +33,7 @@ func TestPageFilesRevalidate(t *testing.T) {
 		return rec
 	}
 	tags := map[string]string{}
-	for _, p := range []string{"/", "/app.js", "/app.css", "/i18n.js", "/icons/openai.svg"} {
+	for _, p := range []string{"/", "/prompt.html", "/app.js", "/app.css", "/i18n.js", "/prompt.js", "/prompt.css", "/icons/openai.svg"} {
 		rec := get(p, "")
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s: %d", p, rec.Code)
@@ -118,5 +118,21 @@ func TestPageNamesItsFilesByContent(t *testing.T) {
 	}
 	if again := get("/", page.Header().Get("ETag")); again.Code != http.StatusNotModified {
 		t.Errorf("/ asked again with its ETag: %d, want 304", again.Code)
+	}
+
+	picker := get("/prompt.html", "")
+	if picker.Code != http.StatusOK || !strings.HasPrefix(picker.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("/prompt.html: %d, %q", picker.Code, picker.Header().Get("Content-Type"))
+	}
+	for _, f := range []string{"prompt.js", "prompt.css"} {
+		b, err := fs.ReadFile(staticFS(), f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(b)
+		want := f + "?v=" + hex.EncodeToString(sum[:6])
+		if !strings.Contains(picker.Body.String(), `"`+want+`"`) {
+			t.Errorf("prompt.html doesn't name %s by its content (%s)", f, want)
+		}
 	}
 }

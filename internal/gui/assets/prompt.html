@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prompts</title>
+<script src="boot.js"></script>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="prompt.css">
+</head>
+<body class="promptspot">
+<script src="layout.js"></script>
+<div class="spot" role="dialog" aria-modal="true" aria-labelledby="spotTitle">
+  <h1 class="sr-only" id="spotTitle" data-t>Prompts</h1>
+  <label class="spot-search">
+    <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <input id="spotQ" type="search" autocomplete="off" spellcheck="false" placeholder="Search prompts" aria-label="Search prompts" data-tp>
+    <kbd id="spotShortcut"></kbd>
+  </label>
+  <p class="spot-note" id="spotNote" role="status" hidden></p>
+  <div class="spot-list" id="spotList" role="listbox" aria-label="Prompts"></div>
+  <p class="spot-empty" id="spotEmpty" role="status" hidden></p>
+  <footer class="spot-foot">
+    <span data-t>↑↓ choose</span>
+    <span data-t>Enter insert</span>
+    <span data-t>Esc close</span>
+  </footer>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+</script>
+<script src="i18n.js"></script>
+<script src="prompt.js"></script>
+</body>
+</html>

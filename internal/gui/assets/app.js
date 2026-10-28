@@ -66,6 +66,7 @@ if (window.bootPrefs) setLocale(window.bootPrefs.lang);
 
 let state = { agents: [], profiles: [], catalog: "", settings: {} };
 let prefs = null; // the settings page: theme, lang, version, dir, gateway
+let promptShortcutEditing = false, promptShortcutDraft = "", promptShortcutErr = "";
 let providers = null; // { providers, presets, gateway }
 let view = "agents";
 let showAllAgents = false; // the agents no one has set anything on, folded away
@@ -19462,6 +19463,7 @@ function renderSettings() {
   // the keys that do it too, kept in the choices' tooltip, the row saying no more than its name
   $("#textSizeSegs").title = t("Everything in magpie's windows, larger; {keys} too", { keys: textSizeKeys() });
   $("#textSizeSegs").replaceChildren(segs(TEXT_SIZES.map((n) => [n, n + "%"]), s.textSize || 100, (n) => setTextSize(n)));
+  renderPromptShortcut(s);
   $("#traySegs").replaceChildren(segs(TRAYS.map(([id, name]) => [id, t(name)]), s.tray || "panel", (tray) => savePrefs({ ...keep, tray })));
   // the Dock is the Mac's; the tray and the login item the app's
   $("#dockRow").hidden = !document.body.classList.contains("mac");
@@ -19732,6 +19734,64 @@ function renderSessionTerminal(s, keep) {
       savePrefs({ ...keep, sessionTerminal: v === "system" ? "" : v });
     }, "Session terminal", "sess-menu");
   };
+}
+
+// The prompt picker's global shortcut is registered by the app, not sent as
+// part of generic Settings: a key another app already owns must be refused
+// before it replaces a working one.
+function renderPromptShortcut(s) {
+  const row = $("#promptShortcutRow"), val = $("#promptShortcutVal"), err = $("#promptShortcutErr");
+  row.hidden = web;
+  if (row.hidden) return;
+  $("#promptShortcutSub").textContent = t("Opens the prompt picker from any application. Use CmdOrCtrl, Ctrl, Option or Alt, Shift and a key, such as CmdOrCtrl+Shift+Space.");
+  err.hidden = !promptShortcutErr;
+  err.textContent = promptShortcutErr;
+  val.replaceChildren();
+  if (!promptShortcutEditing) {
+    const code = el("code", "", s.promptShortcut || "CmdOrCtrl+Shift+Space");
+    const change = el("button", "text", t("Change"));
+    change.onclick = () => {
+      promptShortcutEditing = true;
+      promptShortcutDraft = s.promptShortcut || "CmdOrCtrl+Shift+Space";
+      promptShortcutErr = "";
+      renderPromptShortcut(s);
+    };
+    val.append(code, change);
+    return;
+  }
+  const text = input(promptShortcutDraft, "CmdOrCtrl+Shift+Space");
+  text.className = "words";
+  text.setAttribute("aria-label", t("Prompt picker shortcut"));
+  text.spellcheck = false;
+  text.oninput = () => { promptShortcutDraft = text.value; };
+  const save = el("button", "text", t("Save"));
+  save.onclick = () => {
+    const shortcut = text.value.trim();
+    if (!shortcut) return text.focus({ preventScroll: true });
+    writingPrefs(api("settings/prompt-shortcut", { shortcut })).then((ns) => {
+      prefs = state.settings = ns;
+      promptShortcutEditing = false;
+      promptShortcutErr = "";
+      renderSettings();
+      status(t("Saved"), "ok", 1500);
+    }).catch((e) => {
+      promptShortcutErr = e.message;
+      renderSettings();
+    });
+  };
+  const cancel = el("button", "text", t("Cancel"));
+  cancel.onclick = () => {
+    promptShortcutEditing = false;
+    promptShortcutErr = "";
+    renderSettings();
+  };
+  text.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") save.click();
+    else if (e.key === "Escape") cancel.click();
+  };
+  val.append(text, cancel, save);
+  queueMicrotask(() => { if (text.isConnected && document.activeElement !== text) text.focus({ preventScroll: true }); });
 }
 
 // renderSync: the Settings page's sync and backup — a remote keeping the

@@ -30,6 +30,10 @@ magpie.plugin("library", (ctx) => {
   let autoChecked = false; // the page checked by itself, as the server said it was due (#1449)
   let regrouping = false; // the skills' repositories fetched to group them again
   let modal = null;      // what the library has open in the dialog
+  let savedPrompts = null; // null until /api/prompts answers
+  let promptInfo = null;
+  let promptError = "";
+  let loadingPrompts = false;
 
   const GLYPH = {
     cmd: "M3 4.5h10v7H3z M5.5 7l1.5 1.2-1.5 1.3 M8.5 9.5h2",
@@ -478,6 +482,24 @@ magpie.plugin("library", (ctx) => {
       status(e.message, "err");
     }
   }
+  function takePrompts(v) {
+    promptInfo = v;
+    savedPrompts = v.prompts || [];
+    promptError = "";
+  }
+  async function loadPrompts() {
+    if (loadingPrompts) return;
+    loadingPrompts = true;
+    try {
+      takePrompts(await api("prompts"));
+    } catch (e) {
+      promptError = e.message;
+      savedPrompts = savedPrompts || [];
+    } finally {
+      loadingPrompts = false;
+    }
+    if (tab === "prompts") render();
+  }
   // the library as the page shows it: what a change did is said once, not shown
   const seen = (v) => JSON.stringify({ ...v, result: undefined });
 
@@ -725,6 +747,7 @@ magpie.plugin("library", (ctx) => {
     // RTK's count read afresh each time its tab is opened: an agent run
     // since adds to it (#741); the page keeps the last one until then
     if (id === "rtk" && rtk) loadRTK();
+    if (id === "prompts" && savedPrompts === null) loadPrompts();
     if (!lib) return page.querySelector(":scope > .lib-skel")?.replaceWith(skeleton(id));
     render(); syncLists();
   }
@@ -739,6 +762,7 @@ magpie.plugin("library", (ctx) => {
       ["mcp", t("MCP servers") + n("mcp")],
       ["skills", t("Skills") + n("skills")],
       ["hooks", t("Hooks") + n("hooks")],
+      ["prompts", t("Prompts") + n("prompts")],
       ["subagents", t("Subagents") + n("subagents")],
       ["rtk", "RTK"],
     ], tab, openTab);
@@ -791,10 +815,10 @@ magpie.plugin("library", (ctx) => {
     const caret = focus ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
     page.replaceChildren();
     fits = [];
-    const head = libHead({ mcp: lib.servers.length, skills: lib.skills.length, hooks: (lib.hooks || []).length, subagents: (lib.subagents || []).length });
+    const head = libHead({ mcp: lib.servers.length, skills: lib.skills.length, hooks: (lib.hooks || []).length, prompts: savedPrompts?.length || 0, subagents: (lib.subagents || []).length });
     page.append(head);
     head.classList.toggle("stuck", top > 0);
-    if (!lib.agents.length) {
+    if (!lib.agents.length && tab !== "prompts") {
       page.append(empty(t("No agents to write to"), t("Install Claude Code, Codex, Gemini CLI, OpenCode… and the library can give them the same instructions, MCP servers and skills.")));
       return;
     }
@@ -808,6 +832,7 @@ magpie.plugin("library", (ctx) => {
     else if (tab === "mcp") renderServers(body);
     else if (tab === "rtk") renderRTK(body);
     else if (tab === "hooks") renderHooks(body);
+    else if (tab === "prompts") renderPrompts(body);
     else if (tab === "subagents") renderSubagents(body);
     else renderSkills(body);
     page.append(body);
@@ -1434,6 +1459,116 @@ magpie.plugin("library", (ctx) => {
     const s = el("span", "lib-tag " + (kind || ""), text);
     if (title) s.title = title;
     return s;
+  }
+
+  // ---------- prompts ----------
+
+  function renderPrompts(body) {
+    if (savedPrompts === null && !loadingPrompts) loadPrompts();
+    body.append(intro(t("Save prompts you use often, then open the prompt picker from any application with your global shortcut.")));
+    if (promptInfo?.shortcut) {
+      const line = el("p", "lib-aside lib-prompt-key");
+      line.append(el("span", "", t("Prompt picker shortcut")), el("kbd", "", prettyShortcut(promptInfo.shortcut)));
+      if (promptInfo.shortcutError) line.append(tag(t("Shortcut unavailable"), "warn", promptInfo.shortcutError));
+      body.append(line);
+    }
+    if (promptError) body.append(el("p", "lib-warn", promptError));
+    if (savedPrompts === null) {
+      body.append(empty(t("Loading prompts…"), ""));
+      return;
+    }
+    if (!savedPrompts.length) {
+      body.append(empty(t("No prompts yet"), t("Add a prompt you use often. It will be available from the global prompt picker."), button(t("＋ Add prompt"), "action", () => editPrompt(null))));
+      return;
+    }
+    const head = el("div", "row-head");
+    head.append(el("span", "label", t("In the library")), el("span", "grow"), el("span", "note", savedPrompts.length === 1 ? t("1 prompt") : t("{n} prompts", { n: savedPrompts.length })));
+    body.append(head);
+    const list = el("div", "list lib-list");
+    for (const p of savedPrompts) list.append(promptRow(p));
+    body.append(list);
+    const after = el("div", "after-list");
+    after.append(button(t("＋ Add prompt"), "", () => editPrompt(null)));
+    body.append(after);
+  }
+
+  function prettyShortcut(s) {
+    const mac = /^Mac/.test(navigator.platform);
+    return s.split("+").map((x) => {
+      const k = x.toLowerCase();
+      if (k === "cmdorctrl") return mac ? "⌘" : "Ctrl";
+      if (k === "cmd" || k === "command") return "⌘";
+      if (k === "ctrl") return mac ? "⌃" : "Ctrl";
+      if (k === "option" || k === "alt" || k === "optionoralt") return mac ? "⌥" : "Alt";
+      if (k === "shift") return mac ? "⇧" : "Shift";
+      if (k === "space") return "Space";
+      return x.length === 1 ? x.toUpperCase() : x;
+    }).join(mac ? "" : "+");
+  }
+
+  function promptRow(p) {
+    const row = el("div", "row lib-row click lib-prompt");
+    const who = el("div", "who");
+    const name = el("div", "name", p.name);
+    const preview = el("div", "sub lib-prompt-preview", p.text.replace(/\s+/g, " ").trim());
+    preview.title = p.text;
+    who.append(name, preview);
+    row.append(glyph(GLYPH.doc), who);
+    row.onclick = () => editPrompt(p);
+    row.title = t("Edit {name}", { name: p.name });
+    return row;
+  }
+
+  function editPrompt(p) {
+    const ed = el("div", "editor lib-editor wide");
+    const head = el("div", "ehead");
+    head.append(glyph(GLYPH.doc), el("b", "", p ? p.name : t("New prompt")));
+    ed.append(head);
+    const name = input(p?.name || "", t("e.g. Code review"));
+    const text = el("textarea", "lib-text");
+    text.spellcheck = false;
+    text.value = p?.text || "";
+    text.placeholder = t("The prompt to insert");
+    autosize(text, 180);
+    ed.append(...field(t("Name"), name), ...field(t("Prompt"), text));
+    const err = el("div", "editor-error");
+    ed.append(err);
+    const bar = el("div", "bar");
+    let removeArmed = false;
+    const remove = p && button(t("Remove"), "danger", async () => {
+      if (!removeArmed) {
+        removeArmed = true;
+        remove.textContent = t("Remove {name}?", { name: p.name });
+        return;
+      }
+      try {
+        takePrompts(await api("prompts/remove", { id: p.id }));
+        closeLibModal(true);
+        status(t("{name} removed", { name: p.name }), "ok");
+        render();
+      } catch (e) {
+        err.textContent = e.message;
+      }
+    });
+    if (remove) bar.append(remove);
+    bar.append(el("span", "grow"), button(t("Cancel"), "", closeLibModal));
+    const save = button(p ? t("Save") : t("Add"), "primary", async () => {
+      err.textContent = "";
+      try {
+        const v = await api("prompts/save", { id: p?.id || "", name: name.value, text: text.value });
+        takePrompts(v);
+        closeLibModal(true);
+        status(t("{name} saved", { name: name.value.trim() }), "ok");
+        render();
+      } catch (e) {
+        err.textContent = e.message;
+      }
+    });
+    bar.append(save);
+    ed.append(bar);
+    modal = { save: () => save.click() };
+    openLib(ed);
+    queueMicrotask(() => name.focus({ preventScroll: true }));
   }
 
   // ---------- MCP servers ----------

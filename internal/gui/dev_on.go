@@ -96,15 +96,20 @@ func devRoutes(mux *http.ServeMux) {
 	})
 }
 
-// devPage injects the reload script into index.html and turns off caching.
+// devPage injects the reload script into the pages and turns off caching.
 func devPage(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Cache-Control", "no-store")
-		if r.URL.Path != "/" && r.URL.Path != "/index.html" {
+		name := "index.html"
+		switch r.URL.Path {
+		case "/", "/index.html":
+		case "/prompt.html":
+			name = "prompt.html"
+		default:
 			next.ServeHTTP(rw, r)
 			return
 		}
-		b, err := os.ReadFile(filepath.Join(assetsDir(), "index.html"))
+		b, err := os.ReadFile(filepath.Join(assetsDir(), name))
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return

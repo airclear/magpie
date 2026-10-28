@@ -15,6 +15,12 @@ import (
 	"github.com/yetone/magpie/internal/redact"
 )
 
+func TestDefaultPromptShortcut(t *testing.T) {
+	if got := (Settings{}).normal().PromptShortcut; got != DefaultPromptShortcut {
+		t.Fatalf("default prompt shortcut %q, want %q", got, DefaultPromptShortcut)
+	}
+}
+
 func TestRoundTrip(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	if s := Load(); s.Theme != "system" || s.Lang != "system" {

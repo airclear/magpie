@@ -68,10 +68,11 @@ func appIconFor() []byte {
 }
 
 type host struct {
-	app   *application.App
-	panel *application.WebviewWindow
-	main  *application.WebviewWindow
-	tray  *application.SystemTray
+	app    *application.App
+	panel  *application.WebviewWindow
+	main   *application.WebviewWindow
+	prompt *application.WebviewWindow
+	tray   *application.SystemTray
 	// flapping is set while the tray bird plays its flap, so a second
 	// click in it doesn't start another over it
 	flapping atomic.Bool
@@ -107,6 +108,11 @@ type host struct {
 	loading map[*application.WebviewWindow]bool
 	// the main window placed as it was last left (placeMain), and so shown
 	placed atomic.Pointer[application.WebviewWindow]
+
+	promptMu          sync.Mutex
+	promptApp         promptApp
+	promptRegistered  string
+	promptShortcutErr string
 }
 
 // whenReady runs fn once the main window can be shown safely.
@@ -443,6 +449,11 @@ func Run(version string, showMain bool, link string) error {
 
 	h.panel = h.makePanel()
 	h.main = h.makeMain("/?" + theme)
+	h.prompt = h.makePrompt()
+	promptShortcutChanged = h.changePromptShortcut
+	if err := h.changePromptShortcut(settings.Load().PromptShortcut); err != nil {
+		log.Println("prompt shortcut:", err)
+	}
 	onFonts = h.fontsChanged
 
 	// the menu in the page's language, relabelled when that changes (#301)

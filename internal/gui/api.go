@@ -793,7 +793,8 @@ func revalidated(next http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 			return
 		}
-		if r.URL.Path == "/" {
+		page := r.URL.Path == "/" || strings.HasSuffix(name, ".html")
+		if page {
 			b = versionedPage(b)
 		}
 		sum := sha256.Sum256(b)
@@ -807,9 +808,9 @@ func revalidated(next http.Handler) http.Handler {
 		if v := r.URL.Query().Get("v"); v != "" && v == hex.EncodeToString(sum[:6]) {
 			rw.Header().Set("Cache-Control", "max-age=31536000, immutable")
 		}
-		if r.URL.Path == "/" {
+		if page {
 			rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-			http.ServeContent(rw, r, "index.html", time.Time{}, bytes.NewReader(b))
+			http.ServeContent(rw, r, name, time.Time{}, bytes.NewReader(b))
 			return
 		}
 		next.ServeHTTP(rw, r)
@@ -1218,6 +1219,7 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 	backupRoutes(mux, w)
 	archiveRoutes(mux)
 	libraryRoutes(mux, w)
+	promptRoutes(mux, w)
 	updateRoutes(mux, w)
 	whatsNewRoutes(mux)
 	cliBehindRoutes(mux)
@@ -1300,6 +1302,9 @@ func Handler(w Windows, gw *gateway.Server) http.Handler {
 		if _, sent := fields["reduceMotion"]; !sent {
 			in.ReduceMotion = cur.ReduceMotion
 		}
+		// the prompt picker's shortcut is registered by its own endpoint,
+		// where a failed registration can be reported before it is saved
+		in.PromptShortcut = cur.PromptShortcut
 		in.AgentOrder, in.AgentsHidden, in.AgentsShown = cur.AgentOrder, cur.AgentsHidden, cur.AgentsShown
 		in.Window, in.WindowMaximised = cur.Window, cur.WindowMaximised // the window's own, as it was last resized
 		// and what other pages keep here: which models an agent is shown, and
